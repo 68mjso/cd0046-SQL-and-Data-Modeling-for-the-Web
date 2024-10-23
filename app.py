@@ -6,31 +6,19 @@ import json
 import dateutil.parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
-from flask_moment import Moment
-from flask_sqlalchemy import SQLAlchemy
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
-
-from sqlalchemy.orm import DeclarativeBase
-
+from base import app, db
+from artist import Artist
+from venue import Venue
+from show import Show
 # ----------------------------------------------------------------------------#
 # App Config.
 # ----------------------------------------------------------------------------#
 
-
-class Base(DeclarativeBase):
-    pass
-
-
-db = SQLAlchemy(model_class=Base)
-
-app = Flask(__name__)
-moment = Moment(app)
-app.config.from_object("config")
-db.init_app(app)
 
 # TODO: connect to a local postgresql database
 
@@ -41,108 +29,7 @@ migrate = Migrate(app, db)
 # ----------------------------------------------------------------------------#
 
 
-class Venue(db.Model):
-    __tablename__ = "Venue"
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
-    seeking_talent = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(500))
-
-    shows = db.relationship("Show", backref="venue", lazy=True)
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    def _repr__(self):
-        return f"<Venue {self.id} {self.name} {self.city} {self.state} {self.address} {self.phone} {self.image_link} {self.facebook_link} {self.genres} {self.website_link} {self.seeking_talent} {self.seeking_description}>"
-
-    def __get__(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "city": self.city,
-            "state": self.state,
-            "address": self.address,
-            "phone": self.phone,
-            "image_link": self.image_link,
-            "facebook_link": self.facebook_link,
-            "genres": self.genres.split(","),
-            "website_link": self.website_link,
-            "seeking_talent": self.seeking_talent,
-            "seeking_description": self.seeking_description,
-        }
-
-
-class Artist(db.Model):
-    __tablename__ = "Artist"
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(250))
-    facebook_link = db.Column(db.String(250))
-    website_link = db.Column(db.String(250))
-    seeking_venue = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(500))
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    shows = db.relationship("Show", backref="artist", lazy=True)
-
-    def _repr__(self):
-        return f"<Artist {self.id} {self.name} {self.city} {self.state} {self.phone} {self.genres} {self.image_link} {self.facebook_link} {self.website_link} {self.seeking_venue} {self.seeking_description}>"
-
-    def __get__(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "city": self.city,
-            "state": self.state,
-            "phone": self.phone,
-            "genres": self.genres.split(","),
-            "image_link": self.image_link,
-            "facebook_link": self.facebook_link,
-            "website_link": self.website_link,
-            "seeking_venue": self.seeking_venue,
-            "seeking_description": self.seeking_description,
-        }
-
-
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
-
-
-class Show(db.Model):
-    __tablename__ = "Show"
-
-    id = db.Column(db.Integer, primary_key=True)
-    start_time = db.Column(db.DateTime, nullable=False)
-    venue_id = db.Column(db.Integer, db.ForeignKey("Venue.id"), nullable=False)
-    artist_id = db.Column(db.Integer, db.ForeignKey("Artist.id"), nullable=False)
-
-    def _repr__(self):
-        return f"<Show {self.venue_id} {self.artist_id} {self.start_time}>"
-
-    def __get__(self):
-        venue = Venue.query.get(self.venue_id)
-        artist = Artist.query.get(self.artist_id)
-        return {
-            "id": self.id,
-            "venue_id": self.venue_id,
-            "venue_name": venue.name,
-            "artist_id": self.artist_id,
-            "artist_name": artist.name,
-            "artist_image_link": artist.image_link,
-            "start_time": self.start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-        }
 
 
 # ----------------------------------------------------------------------------#
@@ -240,7 +127,7 @@ def show_venue(venue_id):
             Artist.name.label("artist_name"),
             Artist.image_link.label("artist_image_link"),
         )
-        .join(Artist)
+        .join(Artist, Show.artist_id == Artist.id)
         .filter(Show.venue_id == venue_id, Show.start_time < current_time)
         .all()
     )
@@ -252,7 +139,7 @@ def show_venue(venue_id):
             Artist.name.label("artist_name"),
             Artist.image_link.label("artist_image_link"),
         )
-        .join(Artist)
+        .join(Artist, Show.artist_id == Artist.id)
         .filter(Show.venue_id == venue_id, Show.start_time >= current_time)
         .all()
     )
@@ -414,7 +301,7 @@ def show_artist(artist_id):
             Venue.name.label("venue_name"),
             Venue.image_link.label("venue_image_link"),
         )
-        .join(Venue)
+        .join(Venue, Show.venue_id == Venue.id)
         .filter(Show.artist_id == artist_id, Show.start_time < current_time)
         .all()
     )
@@ -426,7 +313,7 @@ def show_artist(artist_id):
             Venue.name.label("venue_name"),
             Venue.image_link.label("venue_image_link"),
         )
-        .join(Venue)
+        .join(Venue, Show.venue_id == Venue.id)
         .filter(Show.artist_id == artist_id, Show.start_time >= current_time)
         .all()
     )
