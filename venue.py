@@ -1,5 +1,6 @@
 from base import db
 
+
 class Venue(db.Model):
     __tablename__ = "Venue"
 
@@ -11,7 +12,7 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
+    genres = db.Column(db.ARRAY(db.String), nullable=False)
     website_link = db.Column(db.String(120))
     seeking_talent = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.String(500))
@@ -23,6 +24,7 @@ class Venue(db.Model):
         return f"<Venue {self.id} {self.name} {self.city} {self.state} {self.address} {self.phone} {self.image_link} {self.facebook_link} {self.genres} {self.website_link} {self.seeking_talent} {self.seeking_description}>"
 
     def __get__(self):
+        print(self)
         return {
             "id": self.id,
             "name": self.name,
@@ -32,7 +34,7 @@ class Venue(db.Model):
             "phone": self.phone,
             "image_link": self.image_link,
             "facebook_link": self.facebook_link,
-            "genres": self.genres.split(","),
+            "genres": self.genres,
             "website_link": self.website_link,
             "seeking_talent": self.seeking_talent,
             "seeking_description": self.seeking_description,

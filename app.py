@@ -15,6 +15,7 @@ from base import app, db
 from artist import Artist
 from venue import Venue
 from show import Show
+
 # ----------------------------------------------------------------------------#
 # App Config.
 # ----------------------------------------------------------------------------#
@@ -185,6 +186,17 @@ def create_venue_form():
 
 @app.route("/venues/create", methods=["POST"])
 def create_venue_submission():
+    form = VenueForm(request.form, meta={"csrf": False})
+    if form.validate() is False:
+        errors = ", ".join(
+            [
+                f"{field} {error}"
+                for field, errs in form.errors.items()
+                for error in errs
+            ]
+        )
+        flash(f"Please fix these errors: {errors}")
+        return render_template("forms/new_venue.html", form=form)
     try:
         # TODO: insert form data as a new Venue record in the db, instead
         # TODO: modify data to be the data object returned from db insertion
@@ -194,7 +206,7 @@ def create_venue_submission():
             state=request.form["state"],
             address=request.form["address"],
             phone=request.form["phone"],
-            genres=",".join(request.form.getlist("genres")),
+            genres=request.form.getlist("genres"),
             facebook_link=request.form["facebook_link"],
             image_link=request.form["image_link"],
             website_link=request.form["website_link"],
@@ -361,19 +373,30 @@ def edit_artist(artist_id):
 
 @app.route("/artists/<int:artist_id>/edit", methods=["POST"])
 def edit_artist_submission(artist_id):
+    artist: Artist = Artist.query.get(artist_id)
+    form = ArtistForm(request.form, meta={"csrf": False})
+    if form.validate() is False:
+        errors = ", ".join(
+            [
+                f"{field} {error}"
+                for field, errs in form.errors.items()
+                for error in errs
+            ]
+        )
+        flash(f"Please fix these errors: {errors}")
+        return render_template("forms/edit_artist.html", form=form, artist=artist)
     # TODO: take values from the form submitted, and update existing
     # artist record with ID <artist_id> using the new attributes
-    artist: Artist = Artist.query.get(artist_id)
-    artist.name = request.form["name"] or ""
-    artist.city = request.form["city"] or ""
-    artist.state = request.form["state"] or ""
-    artist.phone = request.form["phone"] or ""
-    artist.genres = ",".join(request.form.getlist("genres")) or ""
-    artist.facebook_link = request.form["facebook_link"] or ""
-    artist.image_link = request.form["image_link"] or ""
-    artist.website_link = request.form["website_link"] or ""
+    artist.name = request.form["name"]
+    artist.city = request.form["city"]
+    artist.state = request.form["state"]
+    artist.phone = request.form["phone"]
+    artist.genres = request.form.getlist("genres")
+    artist.facebook_link = request.form["facebook_link"]
+    artist.image_link = request.form["image_link"]
+    artist.website_link = request.form["website_link"]
     artist.seeking_venue = request.form.get("seeking_venue", "n") == "y"
-    artist.seeking_description = request.form["seeking_description"] or ""
+    artist.seeking_description = request.form["seeking_description"]
     db.session.commit()
     return redirect(url_for("show_artist", artist_id=artist_id))
 
@@ -389,15 +412,26 @@ def edit_venue(venue_id):
 
 @app.route("/venues/<int:venue_id>/edit", methods=["POST"])
 def edit_venue_submission(venue_id):
+    venue: Venue = Venue.query.get(venue_id)
+    form = VenueForm(request.form, meta={"csrf": False})
+    if form.validate() is False:
+        errors = ", ".join(
+            [
+                f"{field} {error}"
+                for field, errs in form.errors.items()
+                for error in errs
+            ]
+        )
+        flash(f"Please fix these errors: {errors}")
+        return render_template("forms/edit_venue.html", form=form, venue=venue)
     # TODO: take values from the form submitted, and update existing
     # venue record with ID <venue_id> using the new attributes
-    venue: Venue = Venue.query.get(venue_id)
     venue.name = request.form["name"]
     venue.city = request.form["city"]
     venue.state = request.form["state"]
     venue.address = request.form["address"]
     venue.phone = request.form["phone"]
-    venue.genres = ",".join(request.form.getlist("genres"))
+    venue.genres = request.form.getlist("genres")
     venue.facebook_link = request.form["facebook_link"]
     venue.image_link = request.form["image_link"]
     venue.website_link = request.form["website_link"]
@@ -419,21 +453,32 @@ def create_artist_form():
 
 @app.route("/artists/create", methods=["POST"])
 def create_artist_submission():
+    form = ArtistForm(request.form, meta={"csrf": False})
+    if form.validate() is False:
+        errors = ", ".join(
+            [
+                f"{field} {error}"
+                for field, errs in form.errors.items()
+                for error in errs
+            ]
+        )
+        flash(f"Please fix these errors: {errors}")
+        return render_template("forms/new_artist.html", form=form)
     # called upon submitting the new artist listing form
     try:
         # TODO: insert form data as a new Artist record in the db, instead
         # TODO: modify data to be the data object returned from db insertion
         new_artist = Artist(
-            name=request.form["name"] or "",
-            city=request.form["city"] or "",
-            state=request.form["state"] or "",
-            phone=request.form["phone"] or "",
-            genres=",".join(request.form.getlist("genres")) or "",
-            facebook_link=request.form["facebook_link"] or "",
-            image_link=request.form["image_link"] or "",
-            website_link=request.form["website_link"] or "",
+            name=request.form["name"],
+            city=request.form["city"],
+            state=request.form["state"],
+            phone=request.form["phone"],
+            genres=request.form.getlist("genres"),
+            facebook_link=request.form["facebook_link"],
+            image_link=request.form["image_link"],
+            website_link=request.form["website_link"],
             seeking_venue=request.form.get("seeking_venue", "n") == "y",
-            seeking_description=request.form["seeking_description"] or "",
+            seeking_description=request.form["seeking_description"],
         )
         db.session.add(new_artist)
         db.session.commit()
@@ -479,6 +524,17 @@ def create_shows():
 def create_show_submission():
     # called to create new shows in the db, upon submitting new show listing form
     # TODO: insert form data as a new Show record in the db, instead
+    form = ShowForm(request.form, meta={"csrf": False})
+    if form.validate() is False:
+        errors = ", ".join(
+            [
+                f"{field} {error}"
+                for field, errs in form.errors.items()
+                for error in errs
+            ]
+        )
+        flash(f"Please fix these errors: {errors}")
+        return render_template("forms/new_show.html", form=form)
     try:
         artist_id = request.form["artist_id"]
         venue_id = request.form["venue_id"]
